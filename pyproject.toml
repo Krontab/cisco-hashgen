@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cisco-hashgen"
+version = "1.1.1"
+description = "Generate and verify Cisco-compatible PBKDF2 password hashes (ASA & IOS/IOS-XE)"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "MIT"
+authors = [{ name = "Gilbert Mendoza" }]
+keywords = ["Cisco", "ASA", "IOS", "PBKDF2", "password", "security", "networking"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Environment :: Console",
+  "Topic :: Security :: Cryptography",
+  "Topic :: System :: Systems Administration",
+]
+license-files = ["LICENSE"]
+
+[project.urls]
+Homepage = "https://github.com/Krontab/cisco-hashgen"
+Issues = "https://github.com/Krontab/cisco-hashgen/issues"
+
+[project.scripts]
+cisco-hashgen = "cisco_hashgen.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
