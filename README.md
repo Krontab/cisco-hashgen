@@ -1,5 +1,16 @@
 # cisco-hashgen
 
+[![PyPI version](https://img.shields.io/pypi/v/cisco-hashgen.svg)](https://pypi.org/project/cisco-hashgen/)
+[![Python versions](https://img.shields.io/pypi/pyversions/cisco-hashgen.svg)](https://pypi.org/project/cisco-hashgen/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/Krontab/cisco-hashgen/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Krontab/cisco-hashgen/actions/workflows/ci.yml)
+
+<!-- Enable this once downloads look healthy :)
+[![Downloads](https://static.pepy.tech/badge/cisco-hashgen)](https://pepy.tech/project/cisco-hashgen)
+-->
+
+> Generate and verify Cisco-compatible PBKDF2 password hashes for ASA & IOS/IOS-XE.
+
 Generate and verify Cisco-compatible **PBKDF2** password hashes from the command line.
 
 **Supported formats**
