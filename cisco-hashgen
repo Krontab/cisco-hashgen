@@ -1,17 +1,8 @@
 #!/usr/bin/env python3
-"""Thin launcher for cisco-hashgen.
-
-- Keeps repo users able to run `./cisco-hashgen`
-- Defers all real parsing/work to `cisco_hashgen.cli:main`
-- Translates legacy `-help` to `--help` for compatibility
-"""
 import sys
-
-# Legacy alias: turn a lone `-help` into `--help` before argparse runs
+# Map legacy -help to --help for convenience
 if "-help" in sys.argv and "--help" not in sys.argv and "-h" not in sys.argv:
     sys.argv = [arg.replace("-help", "--help") for arg in sys.argv]
-
 from cisco_hashgen.cli import main
-
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

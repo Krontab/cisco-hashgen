@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cisco-hashgen"
-version = "1.1.1"
+version = "1.2.0"
 description = "Generate and verify Cisco-compatible PBKDF2 password hashes (ASA & IOS/IOS-XE)"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -17,11 +17,12 @@ classifiers = [
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Environment :: Console",
   "Topic :: Security :: Cryptography",
   "Topic :: System :: Systems Administration",
 ]
-license-files = ["LICENSE"]
 
 [project.urls]
 Homepage = "https://github.com/Krontab/cisco-hashgen"
@@ -32,6 +33,7 @@ cisco-hashgen = "cisco_hashgen.cli:main"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
+license-files = ["LICENSE"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

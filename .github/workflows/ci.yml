@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches: [ Main, main ]
+  pull_request:
+
+jobs:
+  test:
+    name: ${{ matrix.os }} • Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install package (editable)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Smoke tests
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "::group::Version"
+          cisco-hashgen --version
+          echo "::endgroup::"
+
+          # 1) ASA generation via env var (no plaintext on cmdline)
+          export CISCO_HASHGEN_PWD='TestPassw0rd!'
+          ASA_HASH="$(cisco-hashgen -asa -env CISCO_HASHGEN_PWD -quiet)"
+          test -n "$ASA_HASH" || { echo "ASA hash empty"; exit 1; }
+          echo "ASA_HASH=${ASA_HASH}" | sed 's/=.*/=[REDACTED]/'
+
+          # 2) Verify ASA with stdin (should match)
+          echo 'TestPassw0rd!' | cisco-hashgen -quiet -v "$ASA_HASH"
+
+          # 3) Negative verify (should fail; expect exit 1)
+          set +e
+          echo 'WrongPass!' | cisco-hashgen -quiet -v "$ASA_HASH"
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then
+            echo "Expected mismatch exit code 1, got $code"
+            exit 1
+          fi
+
+          # 4) IOS/IOS-XE Type 8 generation/verify (stdin one-liner)
+          IOS8_HASH="$(echo 'TestPassw0rd!' | cisco-hashgen -ios8 -quiet)"
+          test -n "$IOS8_HASH" || { echo "IOS8 hash empty"; exit 1; }
+          echo 'TestPassw0rd!' | cisco-hashgen -quiet -v "$IOS8_HASH"
+
+          # 5) -no-prompt should fail fast with exit code 4 when no input provided
+          set +e
+          cisco-hashgen -asa -no-prompt
+          code=$?
+          set -e
+          if [ "$code" -ne 4 ]; then
+            echo "Expected -no-prompt exit 4, got $code"
+            exit 1
+          fi
