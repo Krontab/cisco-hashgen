@@ -17,35 +17,68 @@ Generate and verify Cisco-compatible **PBKDF2** password hashes from the command
 - **ASA**: PBKDF2-HMAC-SHA512 — `$sha512$<iter>$<Base64(salt)>$<Base64(dk16)>`
 - **IOS / IOS-XE Type 8**: PBKDF2-HMAC-SHA256 — `$8$<Cisco64(salt10)>$<Cisco64(dk32)>`
 
-## Install
+## 🚀 Quick Install
 
-**Requires:** Python **3.8+** (tested on 3.8–3.13)
+**Recommended:** Use [pipx](https://pipx.pypa.io/) to install in an isolated environment.
+This avoids dependency conflicts and works the same on Linux, macOS, and Windows.
 
+### Ubuntu / Debian
 ```bash
-python3 -m pip install cisco-hashgen
+sudo apt update
+sudo apt install pipx
+pipx ensurepath
+pipx install cisco-hashgen
 ```
+
+### macOS (Homebrew)
+```bash
+brew install pipx
+pipx ensurepath
+pipx install cisco-hashgen
+```
+
+### Windows (PowerShell)
+```powershell
+python -m pip install --user pipx
+python -m pipx ensurepath
+pipx install cisco-hashgen
+```
+
+### Verify installation
+```bash
+cisco-hashgen --help
+```
+
+> 💡 If you cannot use pipx, you can still install with:
+> ```bash
+> # Linux/macOS
+> python3 -m pip install --user cisco-hashgen
+> # Windows
+> python -m pip install --user cisco-hashgen
+> # On Debian/Ubuntu you may need:
+> python3 -m pip install --user cisco-hashgen --break-system-packages
+> ```
+
 
 ## Why this exists
 
 1) **Bootstrap without plaintext**  
-   Pre-generate hashes offline and embed them in config templates—without storing or echoing the cleartext password.
+   Pre-generate hashes offline and embed them in config templates—without storing or echoing the clear text password.
 
 2) **Verify existing hashes offline**  
    Check if a password matches a Cisco hash without touching the device.
 
-> Hashes are only as strong as the password and parameters. Prefer long, random passphrases; keep iteration counts at Cisco defaults (or higher where supported); and protect generated hashes like any credential artifact.
+> 💡 Hashes are only as strong as the password and parameters. Prefer long, random passphrases; keep iteration counts at Cisco defaults (or higher where supported); and protect generated hashes like any credential artifact.
 
 ## Quick start
 
 ### Generate ASA (PBKDF2-SHA512)
 ```bash
 # interactive (masked)
-cisco-hasgen  
+cisco-hashgen
 cisco-hashgen -asa
-
-Note: cisco-hashgen defaults to -asa output but you can specify -asa for clarity. 
-
-```
+````
+>💡 Note: cisco-hashgen defaults to -asa output, but you can specify -asa for clarity.
 
 ### Generate IOS/IOS-XE Type 8 (PBKDF2-SHA256)
 ```bash
@@ -62,10 +95,11 @@ cisco-hashgen -v '$sha512$5000$...$...'
 cisco-hashgen -v '$8$SALT$HASH'
 ```
 
-### One-liner verify (stdin + -v)
-```bash
-echo 'My S3cr3t!' | cisco-hashgen -ios8 -quiet -v '$8$HxHoQOhOgadA7E==$HjROgK8oWfeM45/EHbOwxCC328xBBYz2IF2BevFOSok='
-```
+### One-liner verify (stdin + -v) - Not Recommended
+> 💡 When executed this way, a password is displayed on screen and likely saved in the systems command history or process list. It however illustrates the tool's flexibility.
+>```bash
+>echo 'My S3cr3t!' | cisco-hashgen -ios8 -quiet -v '$8$HxHoQOhOgadA7E==$HjROgK8oWfeM45/EHbOwxCC328xBBYz2IF2BevFOSok='
+>```
 
 ## Supplying passwords securely
 
@@ -87,7 +121,7 @@ read -rs PW && CISCO_HASHGEN_PWD="$PW" cisco-hashgen -ios8 -env CISCO_HASHGEN_PW
    ```bash
    security find-generic-password -w -s HASHGEN_PW | cisco-hashgen -asa -quiet
    ```
-   Remove later with: `security delete-generic-password -s HASHGEN_PW`
+3. Remove later with: `security delete-generic-password -s HASHGEN_PW`
 
 ### D) pass (Password Store)
 ```bash
