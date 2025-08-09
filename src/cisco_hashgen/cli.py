@@ -133,6 +133,10 @@ def read_password_noninteractive(args):
         return val
     if not sys.stdin.isatty():
         data = sys.stdin.read()
+        # Treat *empty* stdin as "no input" so -no-prompt can trigger exit 4.
+        if data == "":
+            return None
+        # Strip a single trailing newline (common with echo/printf)
         if data.endswith("\n"):
             data = data[:-1]
         return data
@@ -188,13 +192,13 @@ def main():
                 print(colorize(f"[Verifying {label} hash]", "bold", "green", use_color=USE_COLOR))
 
             pw = read_password_noninteractive(args)
+            # Fail fast if -no-prompt and no non-interactive password provided
+            if pw is None and getattr(args, "no_prompt", False):
+                if not args.quiet:
+                    print("[-] No password provided via stdin/-pwd/-env (no-prompt set).")
+                sys.exit(4)
             if pw is None:
-                if args.no_prompt:
-                    if not args.quiet:
-                        print("[-] No password provided via stdin/-pwd/-env and -no-prompt set; exiting.")
-                    sys.exit(4)
                 pw = prompt_password("Enter password to verify: ", confirm=False)
-
             try:
                 validate_password(pw, args.minlen, args.maxlen)
             except ValueError as e:

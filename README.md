@@ -166,10 +166,4 @@ usage: cisco-hashgen [-asa | -ios8] [-v HASH] [-iter N] [-salt-bytes N]
 MIT © Gilbert Mendoza
 
 ## Changelog
-- **1.2.0**
-  - Added `--version`
-  - Added `-no-prompt` for CI-safe verify/generate
-  - Improved help text (quoting guide)
-  - Clean Ctrl-C exits (130)
-  - Improved README
-
+See the [docs/releases](docs/releases/) folder for complete version history, or visit the [GitHub Releases](https://github.com/Krontab/cisco-hashgen/releases) page.
