@@ -9,8 +9,8 @@ tag             = true
 
 [bumpver.file_patterns]
 "pyproject.toml" = [
-  '''version[ ]*=[ ]*"{current_version}"'''
+  '''version[ ]{0,8}=[ ]{0,8}"{current_version}"'''
 ]
 "src/cisco_hashgen/__init__.py" = [
-  '''__version__[ ]*=[ ]*"{current_version}"'''
+  '''__version__[ ]{0,8}=[ ]{0,8}"{current_version}"'''
 ]
