@@ -6,6 +6,7 @@ tag_message     = "Release {new_version}"
 tag_scope       = "default"
 commit          = true
 tag             = true
+tag_name = "v{version}"
 
 [bumpver.file_patterns]
 "pyproject.toml" = [
