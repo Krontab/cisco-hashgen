@@ -1,0 +1,16 @@
+[bumpver]
+current_version = "1.2.5"
+version_pattern = "MAJOR.MINOR.PATCH[PYTAGNUM]"
+commit_message  = "chore(release): {new_version}"
+tag_message     = "Release {new_version}"
+tag_scope       = "default"
+commit          = true
+tag             = true
+
+[bumpver.file_patterns]
+"pyproject.toml" = [
+  'version\s*=\s*"{current_version}"'
+]
+"src/cisco_hashgen/__init__.py" = [
+  '__version__\s*=\s*"{current_version}"'
+]
