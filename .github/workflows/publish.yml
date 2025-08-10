@@ -1,0 +1,51 @@
+name: Publish (PyPI)
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions:
+  id-token: write      # required for Trusted Publishing (OIDC)
+  contents: write      # required to create GitHub Releases
+
+jobs:
+  build-publish:
+    name: Build & Publish to PyPI + Create GH Release
+    runs-on: ubuntu-latest
+    environment: pypi-prod
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install build tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install build twine
+
+      - name: Build dists
+        run: python -m build
+
+      - name: Twine check
+        run: python -m twine check dist/*
+
+      - name: Publish to PyPI (Trusted Publishing)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://upload.pypi.org/legacy/
+          print-hash: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "cisco-hashgen ${{ github.ref_name }}"
+          body_path: docs/releases/release-notes-${{ github.ref_name }}.md
+          files: |
+            dist/*
