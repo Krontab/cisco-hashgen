@@ -3,7 +3,7 @@ name: Publish (TestPyPI)
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+-rc*'
+      - 'v[0-9]+.[0-9]+.[0-9]+rc*'
 
 permissions:
   id-token: write      # required for Trusted Publishing (OIDC)
