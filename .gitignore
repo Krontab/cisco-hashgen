@@ -10,3 +10,4 @@ release.sh
 *.patch
 *.diff
 .DS_Store
+.idea
