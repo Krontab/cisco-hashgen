@@ -201,3 +201,44 @@ MIT © Gilbert Mendoza
 
 ## Changelog
 See the [docs/releases](docs/releases/) folder for complete version history, or visit the [GitHub Releases](https://github.com/Krontab/cisco-hashgen/releases) page.
+
+## New in 2.0.1
+
+Cisco HashGen now supports:
+
+- **Type 5** (MD5-crypt) `$1$<salt>$<hash>`
+- **Type 9** (scrypt) `$9$<Cisco64(salt)>$<Cisco64(dk)>`
+
+### Type 5 (MD5-crypt)
+
+```bash
+# Generate a Type 5 hash (random salt)
+echo "MyS3cret!" | cisco-hashgen -ios5 -quiet
+# Example output:
+# $1$abc12345$w9xYfsl.NK3i3uMnXzOvT1
+
+# Verify a Type 5 hash
+echo "MyS3cret!" | cisco-hashgen -v '$1$abc12345$w9xYfsl.NK3i3uMnXzOvT1' -quiet && echo OK || echo FAIL
+```
+
+> **Note**: MD5-crypt requires the underlying OS to support it via `crypt(3)`. Most Unix-like systems do; Windows typically does not.
+
+---
+
+### Type 9 (scrypt)
+
+```bash
+# Generate a Type 9 hash (default N=16384, r=1, p=1)
+echo "MyS3cret!" | cisco-hashgen -ios9 -quiet
+# Example output:
+# $9$kKfN8Jd3T3sAbC5F$D2J7Qq9iZ4UoSmEeFbWt
+
+# Verify a Type 9 hash
+echo "MyS3cret!" | cisco-hashgen -v '$9$kKfN8Jd3T3sAbC5F$D2J7Qq9iZ4UoSmEeFbWt' -quiet && echo OK || echo FAIL
+```
+
+Optional parameters for Type 9:
+
+- `--scrypt-N <int>` — CPU/memory cost (default `16384`)
+- `--scrypt-r <int>` — block size (default `1`)
+- `--scrypt-p <int>` — parallelization (default `1`)
