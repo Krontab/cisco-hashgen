@@ -3,7 +3,7 @@ name: Publish (TestPyPI)
 on:
   push:
     tags:
-      - 'v*.*.*rc*'
+      - 'v*rc*'
 
 permissions:
   id-token: write      # required for Trusted Publishing (OIDC)
@@ -12,6 +12,7 @@ permissions:
 jobs:
   build-publish:
     name: Build & Publish to TestPyPI + Create GH Release
+    if: contains(github.ref_name, 'rc')
     runs-on: ubuntu-latest
     environment: pypi-test
 
