@@ -2,11 +2,11 @@
 current_version = "2.0.1rc1"
 version_pattern = "MAJOR.MINOR.PATCH[PYTAGNUM]"
 commit_message  = "chore(release): {new_version}"
-tag_message     = "Release {new_version}"
-tag_scope       = "default"
+#tag_message     = "Release {new_version}"
+#tag_scope       = "default"
 commit          = true
-tag             = true
-tag_name = "v{version}"
+tag             = false
+#tag_name        = "v{version}"
 
 [bumpver.file_patterns]
 "pyproject.toml" = [
