@@ -13,7 +13,6 @@ license-files = ["LICENSE"]
 authors = [{ name = "Gilbert Mendoza" }]
 keywords = ["Cisco", "ASA", "IOS", "PBKDF2", "password", "security", "networking", "router", "switch", "firewall"]
 classifiers = [
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
