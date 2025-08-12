@@ -1,6 +1,7 @@
+```python
 #!/usr/bin/env python3
 """Cisco HashGen — Cisco-compatible password hashing CLI (ASA, IOS Type 5/8/9)."""
-import sys, os, argparse, base64, hashlib, hmac, re\
+import sys, os, argparse, base64, hashlib, hmac, re
 #import secrets
 
 # Version
@@ -40,12 +41,40 @@ IOS9_p = 1
 # Match common IOS/IOS-XE behavior for Type 9 — 10-byte salt encodes to 14 Cisco64 chars (no padding)
 IOS9_SALT_BYTES = 10
 IOS9_DKLEN = 32
+# Some IOS/IOS-XE images vary scrypt parameters. Keep verification flexible.
+# Order matters: most common first to keep it fast.
+IOS9_PARAM_CANDIDATES = [
+    (16384, 1, 1),   # most common (default)
+    (16384, 8, 1),   # seen on several XE trains
+    (16384, 1, 2),   # occasional 'p=2'
+    (16384, 2, 1),   # occasional 'r=2'
+    (8192,  1, 1),   # lower N variants
+    (8192,  8, 1),
+    (4096,  1, 1),   # even lower N (rare)
+    (4096,  8, 1),
+    (32768, 1, 1),   # higher N variant
+    (32768, 8, 1),
+]
 
 MINLEN_DEFAULT = 8
 MAXLEN_DEFAULT = 1024
 
 # ANSI helpers
-ANSI = {"reset":"\x1b[0m","bold":"\x1b[1m","blue":"\x1b[34m","green":"\x1b[32m","cyan":"\x1b[36m","yellow":"\x1b[33m"}
+ANSI = {
+    "reset":"\x1b[0m",
+    "bold":"\x1b[1m",
+    "blue":"\x1b[34m",
+    "green":"\x1b[32m",
+    "cyan":"\x1b[36m",
+    "yellow":"\x1b[33m",
+    "red":"\x1b[31m",
+    }
+USE_COLOR = sys.stdout.isatty()
+
+# Optional debug knob for Type 9 verification – set from argparse.
+DEBUG_IOS9 = False
+DEBUG_IOS9_VERBOSE = False
+
 def colorize(s, *styles, use_color=True):
     if not use_color: return s
     prefix = "".join(ANSI.get(x,"") for x in styles)
@@ -240,17 +269,113 @@ def verify_password(candidate: str, hash_str: str) -> bool:
         parts = hash_str.split("$")
         if len(parts) != 4:
             raise ValueError("Malformed IOS9 hash.")
-        salt = _cisco_b64_decode(parts[2])
-        dk_stored = _cisco_b64_decode(parts[3])
-        dk_test = hashlib.scrypt(
-            candidate.encode(),
-            salt=salt,
-            n=IOS9_N,
-            r=IOS9_r,
-            p=IOS9_p,
-            dklen=len(dk_stored),
-        )
-        return hmac.compare_digest(dk_stored, dk_test)
+        # Raw text fields (Cisco64 by spec)
+        salt_c64 = parts[2]
+        dk_c64   = parts[3]
+        salt = _cisco_b64_decode(salt_c64)
+        dk_stored = _cisco_b64_decode(dk_c64)
+        pwd_bytes = candidate.encode()
+
+        if DEBUG_IOS9:
+            # Lengths and round-trip sanity checks to catch any base64 translation issues.
+            print(colorize(f"[debug-ios9] salt_len={len(salt)} bytes, dk_len={len(dk_stored)} bytes",
+                           "yellow", use_color=USE_COLOR), file=sys.stderr)
+            rt_salt = _cisco_b64(salt)
+            rt_dk   = _cisco_b64(dk_stored)
+            ok_salt_rt = (rt_salt == salt_c64)
+            ok_dk_rt   = (rt_dk == dk_c64.rstrip("="))
+            print(colorize(f"[debug-ios9] salt_c64='{salt_c64}' rt_ok={ok_salt_rt}", "yellow", use_color=USE_COLOR), file=sys.stderr)
+            print(colorize(f"[debug-ios9] rt_salt ='{rt_salt}'", "yellow", use_color=USE_COLOR), file=sys.stderr)
+            # Show raw salt bytes
+            print(colorize(f"[debug-ios9] salt_hex={salt.hex()}", "yellow", use_color=USE_COLOR), file=sys.stderr)
+            print(colorize(f"[debug-ios9] dk_c64   (len={len(dk_c64)}) rt_ok={ok_dk_rt}", "yellow", use_color=USE_COLOR), file=sys.stderr)
+
+        # Build parameter grid
+        param_grid = list(IOS9_PARAM_CANDIDATES)
+        if DEBUG_IOS9_VERBOSE:
+            extra = []
+            for N in (4096, 8192, 16384, 32768):
+                for r in (1, 2, 4, 8):
+                    for p in (1, 2):
+                        tup = (N, r, p)
+                        if tup not in param_grid:
+                            extra.append(tup)
+            param_grid.extend(extra)
+
+        # Helper to try a param grid with a given salt, with optional label for debug
+        def _try_grid_with_salt(salt_bytes: bytes, label: str = "normal", debug_ios9_verbose=None) -> bool:
+            for (n, r, p) in param_grid:
+                if DEBUG_IOS9 and 'debug_ios9_verbose' in locals() and debug_ios9_verbose:
+                    print(colorize(f"[debug-ios9] trying({label}) N={n}, r={r}, p={p}", "blue", use_color=USE_COLOR), file=sys.stderr)
+                try:
+                    dk_test = hashlib.scrypt(
+                        password=pwd_bytes,
+                        salt=salt_bytes,
+                        n=n,
+                        r=r,
+                        p=p,
+                        dklen=len(dk_stored),
+                    )
+                except ValueError:
+                    # Skip unsupported parameter sets on this runtime (OpenSSL restrictions etc).
+                    continue
+                if hmac.compare_digest(dk_stored, dk_test):
+                    if DEBUG_IOS9:
+                        print(colorize(f"[debug-ios9] match({label}) with N={n}, r={r}, p={p}",
+                                       "green", use_color=USE_COLOR), file=sys.stderr)
+                    return True
+            return False
+
+        # 1) Try normal (Cisco64-decoded) salt first
+        if _try_grid_with_salt(salt, "cisco64"):
+            return True
+
+        # 2) If round-trip failed, test ALT interpretations (debug mode only)
+        if DEBUG_IOS9 and not (rt_salt == salt_c64):
+            # 2a) Interpret salt field as **standard** base64 (not Cisco64)
+            try:
+                std = salt_c64.encode("ascii")
+                pad = (-len(std)) % 4
+                if pad:
+                    std += b"=" * pad
+                salt_std = base64.b64decode(std)
+                print(colorize(f"[debug-ios9] alt-decode: stdb64 salt_hex={salt_std.hex()}", "yellow", use_color=USE_COLOR), file=sys.stderr)
+                if _try_grid_with_salt(salt_std, "stdb64"):
+                    return True
+            except Exception as _e:
+                print(colorize(f"[debug-ios9] alt-decode stdb64 failed: {_e}", "red", use_color=USE_COLOR), file=sys.stderr)
+
+            # 2b) Interpret the salt field as **literal ASCII bytes**
+            salt_ascii = salt_c64.encode("ascii")
+            print(colorize(f"[debug-ios9] alt-decode: ascii salt_hex={salt_ascii.hex()}", "yellow", use_color=USE_COLOR), file=sys.stderr)
+            if _try_grid_with_salt(salt_ascii, "ascii"):
+                return True
+
+        for (n, r, p) in param_grid:
+            if DEBUG_IOS9_VERBOSE:
+                print(colorize(f"[debug-ios9] trying N={n}, r={r}, p={p}", "blue", use_color=USE_COLOR), file=sys.stderr)
+            try:
+                dk_test = hashlib.scrypt(
+                    password=pwd_bytes,
+                    salt=salt,
+                    n=n,
+                    r=r,
+                    p=p,
+                    dklen=len(dk_stored),
+                )
+            except ValueError:
+                # If a particular tuple is unsupported on this OpenSSL/Python, skip it.
+                continue
+            if hmac.compare_digest(dk_stored, dk_test):
+                if DEBUG_IOS9:
+                    print(colorize(f"[debug-ios9] match with N={n}, r={r}, p={p}",
+                                   "green", use_color=USE_COLOR), file=sys.stderr)
+                return True
+
+        if DEBUG_IOS9:
+            print(colorize("[debug-ios9] no (N,r,p) candidate matched",
+                           "red", use_color=USE_COLOR), file=sys.stderr)
+        return False
 
     else:
         raise ValueError("Unsupported hash format.")
@@ -352,11 +477,20 @@ def main():
     ap.add_argument("-no-color", action="store_true", help="Disable ANSI colors in help/banners.")
     ap.add_argument("-no-prompt", action="store_true", help="Fail if no password is provided via stdin/-pwd/-env (no interactive prompt).")
     ap.add_argument("--version", action="version", version=f"cisco-hashgen {_VERSION}")
+    # Debugging helper (off by default): prints decoded lengths and parameter tuple tried/matched.
+    ap.add_argument("--debug-ios9", action="store_true",
+                    help="When verifying $9$ hashes, print decoded lengths and the (N,r,p) tuple that matched (if any).")
+    ap.add_argument("--debug-ios9-verbose", action="store_true",
+                    help="Verbose scrypt debug for $9$: log every (N,r,p) tried and salt/dk round-trip checks.")
 
     try:
         args = ap.parse_args()
         if args.no_color:
             use_color = False
+        # set global debug flags
+        global DEBUG_IOS9, DEBUG_IOS9_VERBOSE
+        DEBUG_IOS9 = bool(getattr(args, "debug_ios9", False)) or bool(getattr(args, "debug_ios9_verbose", False))
+        DEBUG_IOS9_VERBOSE = bool(getattr(args, "debug_ios9_verbose", False))
 
         if not args.quiet and not args.verify:
             print(colorize(f"Cisco HashGen v{_VERSION} — Generate and verify Cisco-compatible hashes", "bold","cyan", use_color=use_color))
@@ -377,10 +511,16 @@ def main():
                 print(colorize(f"[Verifying {labels[kind]} hash]", "bold","green", use_color=use_color))
 
             pw = read_password_noninteractive(args)
-            if pw is None and getattr(args,"no_prompt",False):
-                if not args.quiet: print("[-] No password provided via stdin/-pwd/-env (no-prompt set).")
-                sys.exit(4)
             if pw is None:
+                if args.no_prompt:
+                    if not args.quiet:
+                        print("[-] No password provided via stdin/-pwd/-env and -no-prompt set; exiting.")
+                    sys.exit(4)
+
+                # Verify mode: single prompt, no confirmation, with explicit cue
+                if not args.quiet:
+                    labels = {"ASA":"ASA PBKDF2-SHA512","IOS5":"IOS/IOS-XE Type 5 (MD5-crypt)","IOS8":"IOS/IOS-XE Type 8 PBKDF2-SHA256","IOS9":"IOS/IOS-XE Type 9 (scrypt)"}
+                    print(colorize(f"[Enter password to verify against {labels[kind]}]", "bold", "green", use_color=use_color))
                 pw = prompt_password("Enter password to verify: ", confirm=False)
 
             try:
@@ -391,7 +531,10 @@ def main():
 
             ok = verify_password(pw, args.verify)
             if not args.quiet:
-                print("[+] Password matches." if ok else "[-] Password does NOT match.")
+                if ok:
+                    print(colorize("[+] Password matches.", "green", use_color=USE_COLOR))
+                else:
+                    print(colorize("[-] Password does NOT match.", "red", use_color=USE_COLOR))
             sys.exit(0 if ok else 1)
 
         # Generate mode
@@ -400,6 +543,20 @@ def main():
             if args.no_prompt:
                 if not args.quiet: print("[-] No password provided via stdin/-pwd/-env and -no-prompt set; exiting.")
                 sys.exit(4)
+            # Announce which hash we’re about to generate (interactive, non-quiet)
+            if not args.quiet:
+                if getattr(args, "asa", False):
+                    gen_label = "ASA PBKDF2-SHA512"
+                elif getattr(args, "ios5", False):
+                    gen_label = "IOS/IOS-XE Type 5 (MD5-crypt)"
+                elif getattr(args, "ios8", False):
+                    gen_label = "IOS/IOS-XE Type 8 PBKDF2-SHA256"
+                elif getattr(args, "ios9", False):
+                    gen_label = "IOS/IOS-XE Type 9 (scrypt)"
+                else:
+                    # default when no mode flag is given
+                    gen_label = "ASA PBKDF2-SHA512"
+                print(colorize(f"[Generating {gen_label} hash]", "bold", "green", use_color=use_color))
             pw = prompt_password("Enter password: ", confirm=True)
 
         try:
@@ -418,21 +575,17 @@ def main():
             out = build_ios_type8(pwd_bytes, iterations=iters, salt_len=salt_len)
         elif args.ios9:
             salt_len = args.salt_bytes if args.salt_bytes else IOS9_SALT_BYTES
-            out = build_ios_type9_scrypt(pwd_bytes, salt_len=salt_len, n=IOS9_N, r=IOS9_r, p=IOS9_p, dklen=IOS9_DKLEN)
+            out = build_ios_type9_scrypt(
+                pwd_bytes,
+                salt_len=salt_len,
+                n=IOS9_N,
+                r=IOS9_r,
+                p=IOS9_p,
+                dklen=IOS9_DKLEN,
+            )
         else:
             iters = args.iter if args.iter else ASA_DEFAULT_ITER
             salt_len = args.salt_bytes if args.salt_bytes else ASA_DEFAULT_SALT
             out = build_asa_pbkdf2_sha512(pwd_bytes, iterations=iters, salt_len=salt_len)
 
         print(out)
-
-    except KeyboardInterrupt:
-        print()
-        sys.exit(130)
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        print()
-        sys.exit(130)
