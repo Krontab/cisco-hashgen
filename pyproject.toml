@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cisco-hashgen"
-version = "2.0.1rc5"
+version = "2.0.1"
 description = "Generate and verify Cisco-compatible password hashes for Cisco ASA & IOS/IOS-XE."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
