@@ -5,10 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cisco-hashgen"
 version = "2.0.1rc3"
-description = "Generate and verify Cisco-compatible PBKDF2 password hashes (ASA & IOS/IOS-XE)"
+description = "Generate and verify Cisco-compatible password hashes for Cisco ASA & IOS/IOS-XE."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
-license = "MIT"
+license = {file = "LICENSE"}
 license-files = ["LICENSE"]
 authors = [{ name = "Gilbert Mendoza" }]
 keywords = ["Cisco", "ASA", "IOS", "PBKDF2", "password", "security", "networking", "router", "switch", "firewall"]
@@ -20,7 +20,8 @@ classifiers = [
   "Programming Language :: Python :: 3.13",
   "Environment :: Console",
   "Topic :: Security :: Cryptography",
-  "Topic :: System :: Systems Administration",]
+  "Topic :: System :: Systems Administration",
+  "License :: OSI Approved :: MIT License",]
 
 [project.urls]
 Homepage = "https://github.com/Krontab/cisco-hashgen"
