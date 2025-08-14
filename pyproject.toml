@@ -8,7 +8,7 @@ version = "2.0.1rc3"
 description = "Generate and verify Cisco-compatible password hashes for Cisco ASA & IOS/IOS-XE."
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
-license = {file = "LICENSE"}
+license = "MIT"
 license-files = ["LICENSE"]
 authors = [{ name = "Gilbert Mendoza" }]
 keywords = ["Cisco", "ASA", "IOS", "PBKDF2", "password", "security", "networking", "router", "switch", "firewall"]
